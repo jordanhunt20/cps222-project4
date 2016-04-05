@@ -31,10 +31,10 @@ BTree::BTree(string name)
  * Recursive auxiliary function for lookup by key
  * @param1 string specifying key of key-value pair to be found
  * @param2 BTreeBlock number of root to start serach from
+ * @return true if found, false if not
 */
 bool BTree::privateLookup(string key, BTreeFile::BlockNumber numRoot, string & value) const
 {
-    cout << std::endl << "here" << std::endl;
     // top of the part of the tree still needed to be searched
     BTreeBlock top;
     // set root equal to the root of the tree
@@ -64,35 +64,35 @@ void BTree::insert(string key, string value)
     // Student code goes here - remove this line
 }
 
+
+/*
+* Mutator
+* finds a value corresponding to a key in the tree, sets it to value
+* @param1 string key of key value pair to finds
+* @param2 string & string to mutate to the desired value
+* @return true if found, false if not
+*/
 bool BTree::lookup(string key, string & value) const
 {
-    cout << std::endl << 99 << std::endl;
     BTreeBlock root;
     // BTreeFile::getRoot() returns the block number of the root
     // for the file
     BTreeFile::BlockNumber numRoot = _file.getRoot();
-    cout << std::endl << 3 << std::endl;
     // set root equal to the root of the tree
     _file.getBlock(numRoot, root);
-    cout << std::endl << 91 << std::endl;
     //get number of keys in root
     int numKeys = root.getNumberOfKeys();
-    cout << std::endl << numKeys << std::endl;
     // increment i until key (from parameter) is greater than
     // the corresponding key in the root
     int i = 0;
     while (i < numKeys && root.getKey(i) < key) i++;
     if (i < numKeys && root.getKey(i) == key) {
         value = root.getValue(i);
-        cout << 1 << std::endl;
-        cout << std::endl << "here" << std::endl;
         return true;
     } else {
-        cout << std::endl << "here 2" << std::endl;
         BTreeFile::BlockNumber childNum;
         childNum = root.getChild(i);
         bool found = privateLookup(key, childNum, value);
-        cout << 2 << std::endl;
         return found;
     }
 }
