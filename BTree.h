@@ -52,6 +52,7 @@ class BTree
   private:
 
     BTreeFile & _file;
+    bool privateLookup(string key, BTreeFile::BlockNumber numRoot, string & value) const;
 };
 
 #endif
