@@ -15,6 +15,7 @@
 
 #include <iostream>
 using std::cout;
+using std::endl;
 
 #include "BTree.h"
 #include "BTreeFile.h"
@@ -59,12 +60,137 @@ bool BTree::privateLookup(string key, BTreeFile::BlockNumber numRoot, string & v
     }
 }
 
+/*
+bool BTree::findForInsert(string key,
+                            BTreeBlock & top,
+                            BTreeBlock & blockToInsert) const
+{
+
+
+    //get number of keys in root
+    int numKeys = top.getNumberOfKeys();
+
+    // increment i until key (from parameter) is greater than
+    // the corresponding key in the root
+    int i = 0;
+    while (i < numKeys && top.getKey(i) < key) i++;
+    if (i < numKeys && top.getKey(i) == key) {
+        blockToInsert = top;
+        return true;
+    } else {
+        if (top.isLeaf()) {
+            blockToInsert = top;
+            return false;
+        }
+        BTreeFile::BlockNumber childNum;
+        childNum = top.getChild(i);
+        BTreeBlock child;
+        _file.getBlock(childNum, child);
+        bool found = findForInsert(key, child, blockToInsert);
+        return found;
+    }
+}
+*/
 void BTree::insert(string key, string value)
 {
-    // Student code goes here - remove this line
+    // getRoot() returns the block number of the root
+    BTreeFile::BlockNumber numCurr = _file.getRoot();
+
+    // start with curr equal to the root of the tree
+    BTreeBlock curr;
+    _file.getBlock(numCurr, curr);
+
+    // find position the key parameter should go to in curr
+    int position = curr.getPosition(key);
+
+    // empty tree if root = 0
+    if(numCurr == 0) {
+        numCurr = _file.allocateBlock();
+        _file.getBlock(numCurr, curr);
+        _file.setRoot(numCurr);
+        curr.setChild(position, 0);
+    }
+
+    // holds curr's parent's number
+    BTreeFile::BlockNumber numParent = 0; // default
+
+    // holds number of curr's child at position
+    BTreeFile::BlockNumber numChild = curr.getChild(position);
+
+    // follow the tree down until it reaches a leaf
+    while(!curr.isLeaf()) {
+
+        // set numParent to numCurr
+        numParent = numCurr;
+
+        // set numCurr to numChild
+        numCurr = numChild;
+
+        // set curr to block at numChild
+        _file.getBlock(numCurr, curr);
+
+        // set position to position for this key at the child
+        position = curr.getPosition(key);
+
+        // set child to the child of the child
+        numChild = curr.getChild(position);
+    }
+
+    // insert key into curr at position with numChild to its right
+    curr.insert(position, key, value, numChild);
+
+    // if no split is needed, write curr to disk
+    if(!curr.splitNeeded()) _file.putBlock(numCurr, curr);
+
+    // follow curr upwards as long as a split is needed, and do
+    // the necessary operations to each parent
+    while (curr.splitNeeded())
+    {
+        // new block for right half of curr
+        BTreeBlock rightChild;
+
+        // variables to hold the promoted key and promoted value
+        string promotedKey;
+        string promotedValue;
+
+        // split curr; split() mutates all its parameters, along with
+        // its caller (in this case curr)
+        curr.split(promotedKey, promotedValue, rightChild);
+
+        // write curr (now the left child of parent) to disk
+        _file.putBlock(numCurr, curr);
+
+        // get the number of an available block
+        BTreeFile::BlockNumber numRightChild = _file.allocateBlock();
+
+        // write the right file to disk
+        _file.putBlock(numRightChild, rightChild);
+
+        // if no parent, curr is root, so create new root
+        if (numParent == 0) {
+            numParent = _file.allocateBlock();
+            _file.setRoot(numParent);
+        }
+
+        // set parent equal to the parent of curr
+        BTreeBlock parent;
+        _file.getBlock(numParent, parent);
+
+        position = parent.getPosition(promotedKey);
+
+        // insert promoted key and value into parent; assigns right child
+        parent.insert(position, promotedKey, promotedValue, numRightChild);
+
+        // set left child
+        parent.setChild(position, numCurr);
+
+        // write parent to disk
+        _file.putBlock(numParent, parent);
+
+        curr = parent;
+        numCurr = numParent;
+    }
 }
-
-
 /*
 * Mutator
 * finds a value corresponding to a key in the tree, sets it to value
