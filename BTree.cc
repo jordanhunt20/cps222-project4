@@ -20,6 +20,7 @@ using std::endl;
 #include "BTree.h"
 #include "BTreeFile.h"
 #include "BTreeBlock.h"
+#include <cmath>
 
 BTree::BTree(string name)
 : _file(* new BTreeFile(name))
@@ -225,6 +226,85 @@ bool BTree::lookup(string key, string & value) const
 
 bool BTree::remove(string key)
 {
+    // getRoot() returns the block number of the root
+    BTreeFile::BlockNumber numCurr = _file.getRoot();
+
+    // if empty tree return 0 (not found)
+    if (numCurr == 0) {
+        return false;
+    }
+
+    // will hold the position in the tree to follow
+       int position;
+
+       bool notFound = true;
+
+       // will hold the number of the parent of curr. set to default 0
+       BTreeFile::BlockNumber numParent = 0;
+
+       // will hold the number of the child of curr at position
+       BTreeFile::BlockNumber numChild;
+
+       // will hold the height of the tree
+       int height = 1;
+
+       // set curr equal to the block with number numCurr
+       BTreeBlock curr;
+       _file.getBlock(numCurr, curr); // mutates curr
+
+       // follow the tree down until key is found or
+       // until bottom of tree is reached
+       while(notFound && curr.getChild(position) != 0) {
+
+
+
+           // find position the key parameter should go to in curr
+           position = curr.getPosition(key);
+
+           // holds number of curr's child at position
+           numChild = curr.getChild(position);
+
+           // if the key in curr at position is the key we are looking for,
+           // then we are done looking
+           if (curr.getKey(position) == key) {
+               notFound = false;
+           } else {
+
+               // set numParent to numCurr
+               numParent = numCurr;
+
+               // set numCurr to numChild
+               numCurr = numChild;
+
+               // set curr to block at numChild
+               _file.getBlock(numCurr, curr);
+
+               // set position to position for this key at the child
+               position = curr.getPosition(key);
+
+               // set child to the child of the child
+               numChild = curr.getChild(position);
+
+               // increment height
+               height++;
+           }
+       }
+
+       // temp used to go the rest of the way to the bottom of the tree
+       // to get the height of the tree
+       BTreeBlock temp;
+       BTreeFile::BlockNumber numTemp;
+       temp = curr;
+       while (temp.getChild(0) != 0) {
+           numTemp = temp.getChild(0);
+           _file.getBlock(numTemp, temp);
+           height++;
+       }
+
+       cout << endl;
+       cout << "Height: " << height << endl;
+       cout << "currNumber: " << numCurr << endl;
+
     return false; // Student code goes here - remove this line
 }
 
