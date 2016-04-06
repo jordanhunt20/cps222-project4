@@ -352,7 +352,7 @@ bool BTree::remove(string key)
             // min number of keys for a root
             int minNumKeys = ceil ( DEGREE / 2.0 );
             cout << "minnumkeys: " << minNumKeys << endl;
-
+            /*
             // if curr has less than the minimum number of keys
             if (numKeys < ceil ( DEGREE / 2 )) {
 
@@ -437,6 +437,7 @@ bool BTree::remove(string key)
 
 
             }
+            */
 
             // write block curr to disk
             _file.putBlock(numCurr, curr);
