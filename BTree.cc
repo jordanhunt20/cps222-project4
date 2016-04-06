@@ -234,11 +234,13 @@ bool BTree::lookup(string key, string & value) const
 
 bool BTree::remove(string key)
 {
+    cout << endl;
     // getRoot() returns the block number of the root
     BTreeFile::BlockNumber numCurr = _file.getRoot();
 
     // if empty tree return 0 (not found)
     if (numCurr == 0) {
+        cout << "There are no items in the tree." << endl;
         return false;
     }
 
@@ -253,8 +255,8 @@ bool BTree::remove(string key)
        // will hold the number of the child of curr at position
        BTreeFile::BlockNumber numChild;
 
-       // will hold the height of the tree
-       int height = 1;
+       // will hold the level of the tree
+       int level = 1;
 
        // set curr equal to the block with number numCurr
        BTreeBlock curr;
@@ -286,32 +288,164 @@ bool BTree::remove(string key)
 
                // set curr to block at numChild
                _file.getBlock(numCurr, curr);
-
+               cout << "numCurr: " << numCurr << endl;
                // set position to position for this key at the child
                position = curr.getPosition(key);
 
                // set child to the child of the child
                numChild = curr.getChild(position);
 
-               // increment height
-               height++;
+               // increment level
+               level++;
            }
        }
 
+       // set parent equal to the parent of the node containing the key
+       BTreeBlock parent;
+       _file.getBlock(numParent, parent);
+
+       int positionInParent = position;
+
+       /* not necessary - only need the level, not the total level
        // temp used to go the rest of the way to the bottom of the tree
-       // to get the height of the tree
+       // to get the level of the tree
        BTreeBlock temp;
        BTreeFile::BlockNumber numTemp;
        temp = curr;
        while (temp.getChild(0) != 0) {
            numTemp = temp.getChild(0);
            _file.getBlock(numTemp, temp);
-           height++;
+           level++;
        }
-
+       */
        cout << endl;
-       cout << "Height: " << height << endl;
+       cout << "level: " << level << endl;
        cout << "currNumber: " << numCurr << endl;
+
+       // if the key is found on a leaf
+        if (curr.isLeaf()) {
+            cout << "In is leaf" << endl;
+
+
+            // position of key to remove
+            int position = curr.getPosition(key);
+
+            // number of keys in the block containing the key
+            int numKeys = curr.getNumberOfKeys();
+
+            cout << "position before deletion: " << position << endl;
+            // remove the key by sliding all of the keys over to the left
+            // and decrementing the number of keys in curr
+            for ( int i = position + 1; i < numKeys; i++ ) {
+                cout << "curr.getkey(i): " << curr.getKey(i) << endl;
+                cout << "curr.getkey(i-1): " << curr.getKey(i-1) << endl;
+                curr.setKey(i-1, curr.getKey(i));
+                curr.setValue(i-1, curr.getValue(i));
+            }
+
+            // decrement number of keys in curr
+            curr.setNumberOfKeys( numKeys - 1 );
+
+            // reset numKeys to current value of curr
+            numKeys = curr.getNumberOfKeys();
+
+            // min number of keys for a root
+            int minNumKeys = ceil ( DEGREE / 2.0 );
+            cout << "minnumkeys: " << minNumKeys << endl;
+
+            // if curr has less than the minimum number of keys
+            if (numKeys < ceil ( DEGREE / 2 )) {
+
+                // will hold a sibling of curr
+                BTreeBlock sibling;
+
+                // will hold the number of keys in the sibling
+                int numKeysInSibling;
+
+                //get sibling
+                if (positionInParent > 0) {
+                    // get left sibling
+                    _file.getBlock(parent.getChild(positionInParent - 1), sibling);
+
+                    // get the number of keys in the sibling
+                    numKeysInSibling = sibling.getNumberOfKeys();
+
+                    // move keys and values in curr one to the right
+                    curr.setNumberOfKeys ( numKeys + 1 );
+                    for ( int i = 0; i < numKeys; i++ ) {
+                        cout << "IN FOR LOOP" << endl;
+                        cout << "curr.getkey(i): " << curr.getKey(i) << endl;
+                        cout << "curr.getkey(i-1): " << curr.getKey(i-1) << endl;
+                        curr.setKey(i+1, curr.getKey(i));
+                        curr.setValue(i+1, curr.getValue(i));
+                    }
+
+                    // set divider key from parent as the leftmost key of curr
+                    curr.setKey(0, parent.getKey(positionInParent));
+                    curr.setValue(0, parent.getValue(positionInParent));
+
+                    // set divider key from parent to rightmost key of sibling
+                    parent.setKey(positionInParent, sibling.getKey(numKeysInSibling));
+                    parent.setValue(positionInParent, sibling.getKey(numKeysInSibling));
+
+                    // decrement number of keys in sibling
+                    sibling.setNumberOfKeys(numKeysInSibling - 1);
+
+                    numKeysInSibling = sibling.getNumberOfKeys();
+
+                    // if sibling does not have enough keys
+                    if (numKeysInSibling < minNumKeys) {
+
+                    }
+
+                } else {
+                    // get right sibling
+                    _file.getBlock(parent.getChild(positionInParent + 1), sibling);
+
+                    // get the number of keys in the sibling
+                    numKeysInSibling = sibling.getNumberOfKeys();
+
+                    // move keys and values in curr one to the right
+                    curr.setNumberOfKeys ( numKeys + 1 );
+
+                    // set rightmost key in curr to key in parent
+                    curr.setKey( numKeys, parent.getKey(positionInParent));
+                    curr.setValue( numKeys, parent.getValue(positionInParent));
+
+                    // set divider key of parent to lefmost key of sibling
+                    parent.setKey(positionInParent, sibling.getKey(0));
+                    parent.setValue(positionInParent, sibling.getValue(0));
+
+                    // shift keys in sibling left
+                    for ( int i = 0; i < numKeysInSibling; i++ ) {
+                        cout << "IN FOR LOOP shifting sibling left" << endl;
+                        cout << "curr.getkey(i): " << curr.getKey(i) << endl;
+                        cout << "curr.getkey(i-1): " << curr.getKey(i-1) << endl;
+                        sibling.setKey(i, sibling.getKey(i+1));
+                        curr.setValue(i, sibling.getValue(i+1));
+                    }
+                    // decrement number of keys in sibling
+                    sibling.setNumberOfKeys(numKeysInSibling - 1);
+
+                    numKeysInSibling = sibling.getNumberOfKeys();
+
+                    // if sibling does not have enough keys
+                    if (numKeysInSibling < minNumKeys) {
+
+                    }
+                }
+
+
+            }
+
+            // write block curr to disk
+            _file.putBlock(numCurr, curr);
+            return true;
+        } else {
+            // if curr is not a leaf
+
+        }
+
 
     return false; // Student code goes here - remove this line
 }
