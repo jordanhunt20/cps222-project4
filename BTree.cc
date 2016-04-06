@@ -103,6 +103,10 @@ void BTree::insert(string key, string value)
 
     // find position the key parameter should go to in curr
     int position = curr.getPosition(key);
+    cout << "curr[0]: " << curr.getKey(0) << endl;
+    cout << "curr[1]: " << curr.getKey(1) << endl;
+    cout << "numCurr" << numCurr << endl;
+    cout << "1 position: " << position << endl;
 
     // empty tree if root = 0
     if(numCurr == 0) {
@@ -120,7 +124,8 @@ void BTree::insert(string key, string value)
 
     // follow the tree down until it reaches a leaf
     while(!curr.isLeaf()) {
-
+        cout << "num curr: " << numCurr << endl;
+        cout << "2 Position: " << position << endl;
         // set numParent to numCurr
         numParent = numCurr;
 
@@ -136,6 +141,9 @@ void BTree::insert(string key, string value)
         // set child to the child of the child
         numChild = curr.getChild(position);
     }
+    position = curr.getPosition(key);
+    cout << "before insert: " << endl;
+    cout << "position: " << position << endl;
 
     // insert key into curr at position with numChild to its right
     curr.insert(position, key, value, numChild);
