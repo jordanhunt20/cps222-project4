@@ -9,6 +9,7 @@
 #define BTREE_H
 
 #include <string>
+#include <stack>
 #include "BTreeFile.h"
 #include "BTreeBlock.h"
 
@@ -53,7 +54,7 @@ class BTree
 
     BTreeFile & _file;
 
-    bool find(string key, BTreeFile::BlockNumber & numCurr, BTreeFile::BlockNumber & numParent) const;
+    bool find(string key, BTreeFile::BlockNumber & numCurr, std::stack<BTreeFile::BlockNumber> & numParent) const;
 
 
 };

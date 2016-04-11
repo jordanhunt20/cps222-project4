@@ -21,6 +21,7 @@ using std::endl;
 #include "BTreeFile.h"
 #include "BTreeBlock.h"
 #include <cmath>
+#include <stack>
 
 BTree::BTree(string name)
 : _file(* new BTreeFile(name))
@@ -35,7 +36,7 @@ BTree::BTree(string name)
  * @param2 BTreeBlock number of root to start serach from
  * @return true if found, false if not
 */
-bool BTree::find(string key, BTreeFile::BlockNumber & numCurr, BTreeFile::BlockNumber & numParent ) const
+bool BTree::find(string key, BTreeFile::BlockNumber & numCurr, std::stack<BTreeFile::BlockNumber> & path ) const
 {
     // BTreeBlock to hold the block specified by numCurr
     BTreeBlock curr;
@@ -52,9 +53,10 @@ bool BTree::find(string key, BTreeFile::BlockNumber & numCurr, BTreeFile::BlockN
     } else if ( curr.isLeaf() ) { // if curr is a leaf, return false
         return false;
     } else { // if the key is not in curr and curr isn't a leaf, check curr's child
-        numParent = numCurr;
+        path.push(numCurr);
         numCurr = curr.getChild( position );
-        return find( key, numCurr, numParent );
+        cout << "in else in find" << endl;
+        return find( key, numCurr, path );
     }
 }
 
@@ -71,22 +73,47 @@ void BTree::insert(string key, string value)
     // curr will hold hold the blocks of the tree we will change
     BTreeBlock curr;
 
-    // set curr equal to the block at numCurr
-    _file.getBlock(numCurr, curr);
 
-    // holds curr's parent's number
-    BTreeFile::BlockNumber numParent = 0;
+
+    // holds path to curr
+    std::stack<BTreeFile::BlockNumber> path;
+
+    // holds number of curr's parent
+    BTreeFile::BlockNumber numParent;
 
     // holds number of curr's child at position
-    BTreeFile::BlockNumber numChild;
+    BTreeFile::BlockNumber numChild = 0;
 
-    // find returns true if the key is found, and false if not
-    // it also sets numCurr equal to the last block checked,
-    // and numParent equal to the number of numCurr's parent
-    bool found = find ( key, numCurr, numParent );
+    // default false
+    bool found = false;
 
-    // set curr equal to the block at numCurr
-    _file.getBlock(numCurr, curr);
+    // empty tree if root = 0
+    if(numCurr == 0) {
+        cout << "numCurr == 0" << endl;
+        // allocate a block to hold the new key value pair
+        numCurr = _file.allocateBlock();
+
+        // set curr equal to the new block
+        _file.getBlock(numCurr, curr);
+
+        // set the root of the BTree to curr
+        _file.setRoot(numCurr);
+
+        // set curr's child equal to 0
+        curr.setChild(0, 0);
+    } else {
+        // set curr equal to the block at numCurr
+        _file.getBlock(numCurr, curr);
+
+
+        // find returns true if the key is found, and false if not
+        // it also sets numCurr equal to the last block checked,
+        // and numParent equal to the number of numCurr's parent
+        found = find ( key, numCurr, path );
+
+        // set curr equal to the block at numCurr
+        _file.getBlock(numCurr, curr);
+    }
 
     // find position the key parameter should go to in curr
     BTreeFile::BlockNumber position = curr.getPosition(key);
@@ -95,31 +122,26 @@ void BTree::insert(string key, string value)
         curr.setValue( position, value );
         _file.putBlock( numCurr, curr );
     } else {
-        // empty tree if root = 0
-        if(numCurr == 0) {
-            // allocate a block to hold the new key value pair
-            numCurr = _file.allocateBlock();
+        cout << "numCurr: " << numCurr << endl;
 
-            // set curr equal to the new block
-            _file.getBlock(numCurr, curr);
-
-            // set the root of the BTree to curr
-            _file.setRoot(numCurr);
-
-            // set curr's child equal to 0
-            curr.setChild(position, 0);
-        }
 
         // insert key into curr at position with numChild to its right
         curr.insert(position, key, value, numChild);
 
+
+
         // if no split is needed, write curr to disk
-        if(!curr.splitNeeded()) _file.putBlock(numCurr, curr);
+        if(!curr.splitNeeded()) {
+            cout << "No split needed" << endl;
+            _file.putBlock(numCurr, curr);
+        }
 
         // follow curr upwards as long as a split is needed, and do
         // the necessary operations to each parent
         while (curr.splitNeeded())
         {
+            cout << "split needed" << endl;
+
             // new block for right half of curr
             BTreeBlock rightChild;
 
@@ -141,11 +163,17 @@ void BTree::insert(string key, string value)
             _file.putBlock(numRightChild, rightChild);
 
             // if no parent, curr is root, so create new root
-            if (numParent == 0) {
+            if ( path.empty()) {
                 numParent = _file.allocateBlock();
                 _file.setRoot(numParent);
+            } else {
+                // set numParent equal to the top of the path stack
+                numParent = path.top();
+                path.pop();
             }
 
+            cout << "numParent: " << numParent << endl;
+            
             // set parent equal to the parent of curr
             BTreeBlock parent;
             _file.getBlock(numParent, parent);
@@ -187,12 +215,12 @@ bool BTree::lookup(string key, string & value) const
     _file.getBlock(numRoot, root);
 
     // will not be used, only necessary for call to parent
-    BTreeFile::BlockNumber numParent;
+    std::stack<BTreeFile::BlockNumber> path;
 
     // call find on the key with numRoot
     // find returns true if it finds it, and sets
     // numRoot equal to the last block checked
-    if( find ( key, numRoot, numParent ) ) {
+    if( find ( key, numRoot, path ) ) {
 
         // will hold the block where the key was found
         BTreeBlock blockFound;
@@ -223,70 +251,36 @@ bool BTree::lookup(string key, string & value) const
 bool BTree::remove(string key)
 {
     cout << endl;
-    // getRoot() returns the block number of the root
+
+    // min number of keys for a (non-root) node
+    int minNumKeys = ceil ( DEGREE / 2.0 ) - 1;
+
+    // will hold the number of the block where the key is found
     BTreeFile::BlockNumber numCurr = _file.getRoot();
 
-    // if empty tree return 0 (not found)
-    if (numCurr == 0) {
-        cout << "There are no items in the tree." << endl;
+    // will hold the number of the parent of the block where the key is found
+    BTreeFile::BlockNumber numParent = numCurr;
+
+    // will hold the path to the block containing the key
+    std::stack<BTreeFile::BlockNumber> path;
+
+    // sets numCurr equal to the block where key is found,
+    // sets numParent equal to numCurr's parent,
+    // and sets found to true or false dependent on if
+    // the key is found in the tree
+    bool found = find ( key, numCurr, path );
+
+    // if the key is not found in the tree, return false
+    if ( !found ) {
+        cout << "Not found!" << endl;
         return false;
-    }
+    } else {
+        // the key is found in the tree
 
-    // will hold the position in the tree to follow
-       int position;
-
-       bool notFound = true;
-
-       // will hold the number of the parent of curr. set to default 0
-       BTreeFile::BlockNumber numParent = 0;
-
-       // will hold the number of the child of curr at position
-       BTreeFile::BlockNumber numChild;
-
-       // will hold the level of the tree
-       int level = 1;
 
        // set curr equal to the block with number numCurr
        BTreeBlock curr;
-       _file.getBlock(numCurr, curr); // mutates curr
-
-       // follow the tree down until key is found or
-       // until bottom of tree is reached
-       while(notFound && curr.getChild(position) != 0) {
-
-
-
-           // find position the key parameter should go to in curr
-           position = curr.getPosition(key);
-
-           // holds number of curr's child at position
-           numChild = curr.getChild(position);
-
-           // if the key in curr at position is the key we are looking for,
-           // then we are done looking
-           if (curr.getKey(position) == key) {
-               notFound = false;
-           } else {
-
-               // set numParent to numCurr
-               numParent = numCurr;
-
-               // set numCurr to numChild
-               numCurr = numChild;
-
-               // set curr to block at numChild
-               _file.getBlock(numCurr, curr);
-               cout << "numCurr: " << numCurr << endl;
-               // set position to position for this key at the child
-               position = curr.getPosition(key);
-
-               // set child to the child of the child
-               numChild = curr.getChild(position);
-
-               // increment level
-               level++;
-           }
-       }
+       _file.getBlock(numCurr, curr);
 
        // set parent equal to the parent of the node containing the key
        BTreeBlock parent;
@@ -295,8 +289,6 @@ bool BTree::remove(string key)
        cout << "numParent: " << numParent << endl;
        int positionInParent = parent.getPosition(key);
 
-       cout << endl;
-       cout << "level: " << level << endl;
        cout << "currNumber: " << numCurr << endl;
 
        // if the key is found on a leaf
@@ -311,6 +303,7 @@ bool BTree::remove(string key)
             int numKeys = curr.getNumberOfKeys();
 
             cout << "position before deletion: " << position << endl;
+
             // remove the key by sliding all of the keys over to the left
             // and decrementing the number of keys in curr
             for ( int i = position + 1; i < numKeys; i++ ) {
@@ -326,8 +319,7 @@ bool BTree::remove(string key)
             // reset numKeys to current value of curr
             numKeys = curr.getNumberOfKeys();
 
-            // min number of keys for a root
-            int minNumKeys = ceil ( DEGREE / 2.0 );
+
             cout << "minnumkeys: " << minNumKeys << endl;
 
             // if curr has less than the minimum number of keys
@@ -341,6 +333,7 @@ bool BTree::remove(string key)
 
                 // will hold the block number of a sibling of curr
                 int numSibling;
+
                 //get sibling
                 if (positionInParent > 0) {
 
@@ -364,13 +357,15 @@ bool BTree::remove(string key)
                     // move keys and values in curr one to the right
                     for ( int i = numKeys; i > 0; i-- ) {
                         cout << "IN FOR LOOP" << endl;
-                        cout << "curr.getkey(i): " << curr.getKey(i) << endl;
-                        cout << "curr.getkey(i+1): " << curr.getKey(i+1) << endl;
+                        cout << "curr.getkey(i-1): " << curr.getKey(i-1) << endl;
                         curr.setKey(i, curr.getKey(i - 1));
                         curr.setValue(i, curr.getValue(i - 1));
+
+                        cout << "curr.getkey(i): " << curr.getKey(i) << endl;
                     }
 
                     cout << "Position In Parent: " << positionInParent << endl;
+
                     // set divider key from parent as the leftmost key of curr
                     curr.setKey(0, parent.getKey(positionInParent - 1));
                     curr.setValue(0, parent.getValue(positionInParent - 1));
@@ -391,7 +386,7 @@ bool BTree::remove(string key)
                     // parent into a new block, deallocate sibling and curr
                     // and set the child of the key in parent one to
                     // the left of the divider equal to the new block
-                    if (numKeysInSibling < minNumKeys) {
+                    if (numKeysInSibling < minNumKeys && false) {
                         cout << "NUM KEYS IN SIBLING IS LESS THAN MIN NUM OF KEYS" << endl;
                         // allocate a new block on disk
                         int numNewBlock = _file.allocateBlock();
@@ -412,7 +407,7 @@ bool BTree::remove(string key)
 
                         // insert the keys from the sibling into the new block
                         for (int i = 0; i < numKeysInSibling; i++) {
-                            newBlock.insert(positionToInsert, sibling.getKey(i), sibling.getValue(i), 0);
+                            newBlock.insert(i, sibling.getKey(i), sibling.getValue(i), sibling.getChild(i));
                             positionToInsert++;
                         }
 
@@ -430,7 +425,9 @@ bool BTree::remove(string key)
 
                         // set the child of the key one to the left of the divider
                         // in parent equal to numNewBlock
-                        parent.setChild(positionInParent-1, numNewBlock);
+                        parent.setChild(positionInParent-2, numNewBlock);
+
+                        cout << "Position in parent - 2: " << positionInParent - 2 << endl;
 
                         // deallocate curr
                         _file.deallocateBlock(numCurr);
@@ -496,9 +493,11 @@ bool BTree::remove(string key)
             // if curr is not a leaf
 
         }
+    }
 
 
-    return false; // Student code goes here - remove this line
+    return false;
+
 }
 
 #else
