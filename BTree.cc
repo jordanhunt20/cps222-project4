@@ -30,34 +30,30 @@ BTree::BTree(string name)
 
 
 /*
- * Recursive auxiliary function for lookup by key
- * @param1 string specifying key of key-value pair to be found
+ * Recursive auxiliary function for finding a block containing a key
+ * @param1 string specifying key to be found
  * @param2 BTreeBlock number of root to start serach from
  * @return true if found, false if not
 */
-bool BTree::privateLookup(string key, BTreeFile::BlockNumber numRoot, string & value) const
+bool BTree::find(string key, BTreeFile::BlockNumber & numCurr) const
 {
-    // top of the part of the tree still needed to be searched
-    BTreeBlock top;
-    // set root equal to the root of the tree
-    _file.getBlock(numRoot, top);
+    // BTreeBlock to hold the block specified by numCurr
+    BTreeBlock curr;
 
-    //get number of keys in root
-    int numKeys = top.getNumberOfKeys();
+    // set curr equal to the block specified by numCurr
+    _file.getBlock(numCurr, curr);
 
-    // increment i until key (from parameter) is greater than
-    // the corresponding key in the root
-    int i = 0;
-    while (i < numKeys && top.getKey(i) < key) i++;
-    if (i < numKeys && top.getKey(i) == key) {
-        value = top.getValue(i);
+    // position either of the key if found, or of the child to
+    // search in
+    int position = curr.getPosition(key);
+
+    if ( curr.getKey(position) == key ) { // if the key is in curr return true
         return true;
-    } else {
-        if (top.isLeaf()) return false;
-        BTreeFile::BlockNumber childNum;
-        childNum = top.getChild(i);
-        bool found = privateLookup(key, childNum, value);
-        return found;
+    } else if ( curr.isLeaf() ) { // if curr is a leaf, return false
+        return false;
+    } else { // if the key is not in curr and curr isn't a leaf, check curr's child
+        numCurr = curr.getChild( position );
+        return find( key, numCurr );
     }
 }
 
@@ -190,26 +186,38 @@ void BTree::insert(string key, string value)
 */
 bool BTree::lookup(string key, string & value) const
 {
+    // will hold the root of the BTree
     BTreeBlock root;
+
     // BTreeFile::getRoot() returns the block number of the root
     // for the file
     BTreeFile::BlockNumber numRoot = _file.getRoot();
+
     // set root equal to the root of the tree
     _file.getBlock(numRoot, root);
-    //get number of keys in root
-    int numKeys = root.getNumberOfKeys();
-    // increment i until key (from parameter) is greater than
-    // the corresponding key in the root
-    int i = 0;
-    while (i < numKeys && root.getKey(i) < key) i++;
-    if (i < numKeys && root.getKey(i) == key) {
-        value = root.getValue(i);
+
+    // call find on the key with numRoot
+    // find returns true if it finds it, and sets
+    // numRoot equal to the last block checked
+    if( find (key, numRoot) ) {
+
+        // will hold the block where the key was found
+        BTreeBlock blockFound;
+
+        // set blockFound equal to the block where the key was found
+        _file.getBlock(numRoot, blockFound);
+
+        // the position containing the key in blockFound
+        int position = blockFound.getPosition(key);
+
+        // set value equal to the value at position in blockFound
+        value = blockFound.getValue(position);
+
+        // return true since the value was found
         return true;
     } else {
-        BTreeFile::BlockNumber childNum;
-        childNum = root.getChild(i);
-        bool found = privateLookup(key, childNum, value);
-        return found;
+        // return false since the key was not found in the BTree
+        return false;
     }
 }
 
