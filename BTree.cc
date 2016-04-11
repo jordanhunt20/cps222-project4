@@ -53,9 +53,15 @@ bool BTree::find(string key, BTreeFile::BlockNumber & numCurr, std::stack<BTreeF
     } else if ( curr.isLeaf() ) { // if curr is a leaf, return false
         return false;
     } else { // if the key is not in curr and curr isn't a leaf, check curr's child
+        // add numCurr to the path
         path.push(numCurr);
+
+        // set numCurr equal to curr's child so we can continue following the path
+        // to the block containing the key
         numCurr = curr.getChild( position );
-        cout << "in else in find" << endl;
+
+        // recursive call to find on the child of the block
+        // that called this function
         return find( key, numCurr, path );
     }
 }
@@ -73,8 +79,6 @@ void BTree::insert(string key, string value)
     // curr will hold hold the blocks of the tree we will change
     BTreeBlock curr;
 
-
-
     // holds path to curr
     std::stack<BTreeFile::BlockNumber> path;
 
@@ -89,7 +93,6 @@ void BTree::insert(string key, string value)
 
     // empty tree if root = 0
     if(numCurr == 0) {
-        cout << "numCurr == 0" << endl;
         // allocate a block to hold the new key value pair
         numCurr = _file.allocateBlock();
 
@@ -122,17 +125,11 @@ void BTree::insert(string key, string value)
         curr.setValue( position, value );
         _file.putBlock( numCurr, curr );
     } else {
-        cout << "numCurr: " << numCurr << endl;
-
-
         // insert key into curr at position with numChild to its right
         curr.insert(position, key, value, numChild);
 
-
-
         // if no split is needed, write curr to disk
         if(!curr.splitNeeded()) {
-            cout << "No split needed" << endl;
             _file.putBlock(numCurr, curr);
         }
 
@@ -140,8 +137,6 @@ void BTree::insert(string key, string value)
         // the necessary operations to each parent
         while (curr.splitNeeded())
         {
-            cout << "split needed" << endl;
-
             // new block for right half of curr
             BTreeBlock rightChild;
 
@@ -172,8 +167,6 @@ void BTree::insert(string key, string value)
                 path.pop();
             }
 
-            cout << "numParent: " << numParent << endl;
-            
             // set parent equal to the parent of curr
             BTreeBlock parent;
             _file.getBlock(numParent, parent);
