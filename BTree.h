@@ -53,7 +53,7 @@ class BTree
 
     BTreeFile & _file;
 
-    bool find(string key, BTreeFile::BlockNumber & numCurr) const;
+    bool find(string key, BTreeFile::BlockNumber & numCurr, BTreeFile::BlockNumber & numParent) const;
 
 
 };

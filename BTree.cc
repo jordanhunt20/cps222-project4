@@ -35,7 +35,7 @@ BTree::BTree(string name)
  * @param2 BTreeBlock number of root to start serach from
  * @return true if found, false if not
 */
-bool BTree::find(string key, BTreeFile::BlockNumber & numCurr) const
+bool BTree::find(string key, BTreeFile::BlockNumber & numCurr, BTreeFile::BlockNumber & numParent ) const
 {
     // BTreeBlock to hold the block specified by numCurr
     BTreeBlock curr;
@@ -52,8 +52,9 @@ bool BTree::find(string key, BTreeFile::BlockNumber & numCurr) const
     } else if ( curr.isLeaf() ) { // if curr is a leaf, return false
         return false;
     } else { // if the key is not in curr and curr isn't a leaf, check curr's child
+        numParent = numCurr;
         numCurr = curr.getChild( position );
-        return find( key, numCurr );
+        return find( key, numCurr, numParent );
     }
 }
 
@@ -67,58 +68,47 @@ void BTree::insert(string key, string value)
     // getRoot() returns the block number of the root
     BTreeFile::BlockNumber numCurr = _file.getRoot();
 
-    // start with curr equal to the root of the tree
+    // curr will hold hold the blocks of the tree we will change
     BTreeBlock curr;
+
+    // set curr equal to the block at numCurr
+    _file.getBlock(numCurr, curr);
+
+    // holds curr's parent's number
+    BTreeFile::BlockNumber numParent = 0;
+
+    // holds number of curr's child at position
+    BTreeFile::BlockNumber numChild;
+
+    // find returns true if the key is found, and false if not
+    // it also sets numCurr equal to the last block checked,
+    // and numParent equal to the number of numCurr's parent
+    bool found = find ( key, numCurr, numParent );
+
+    // set curr equal to the block at numCurr
     _file.getBlock(numCurr, curr);
 
     // find position the key parameter should go to in curr
-    int position = curr.getPosition(key);
-    cout << "curr[0]: " << curr.getKey(0) << endl;
-    cout << "curr[1]: " << curr.getKey(1) << endl;
-    cout << "numCurr" << numCurr << endl;
-    cout << "1 position: " << position << endl;
+    BTreeFile::BlockNumber position = curr.getPosition(key);
 
-    // empty tree if root = 0
-    if(numCurr == 0) {
-        numCurr = _file.allocateBlock();
-        _file.getBlock(numCurr, curr);
-        _file.setRoot(numCurr);
-        curr.setChild(position, 0);
-    }
-
-    // holds curr's parent's number
-    BTreeFile::BlockNumber numParent = 0; // default
-
-    // holds number of curr's child at position
-    BTreeFile::BlockNumber numChild = curr.getChild(position);
-
-    // follow the tree down until it reaches a leaf
-    while(!curr.isLeaf()) {
-        cout << "num curr: " << numCurr << endl;
-        cout << "2 Position: " << position << endl;
-        // set numParent to numCurr
-        numParent = numCurr;
-
-        // set numCurr to numChild
-        numCurr = numChild;
-
-        // set curr to block at numChild
-        _file.getBlock(numCurr, curr);
-
-        // set position to position for this key at the child
-        position = curr.getPosition(key);
-
-        // set child to the child of the child
-        numChild = curr.getChild(position);
-    }
-    position = curr.getPosition(key);
-    cout << "before insert: " << endl;
-    cout << "position: " << position << endl;
-
-    if (curr.getKey(position) == key) {
-        curr.setValue(position, value);
-        _file.putBlock(numCurr, curr);
+    if ( found ) {
+        curr.setValue( position, value );
+        _file.putBlock( numCurr, curr );
     } else {
+        // empty tree if root = 0
+        if(numCurr == 0) {
+            // allocate a block to hold the new key value pair
+            numCurr = _file.allocateBlock();
+
+            // set curr equal to the new block
+            _file.getBlock(numCurr, curr);
+
+            // set the root of the BTree to curr
+            _file.setRoot(numCurr);
+
+            // set curr's child equal to 0
+            curr.setChild(position, 0);
+        }
 
         // insert key into curr at position with numChild to its right
         curr.insert(position, key, value, numChild);
@@ -196,10 +186,13 @@ bool BTree::lookup(string key, string & value) const
     // set root equal to the root of the tree
     _file.getBlock(numRoot, root);
 
+    // will not be used, only necessary for call to parent
+    BTreeFile::BlockNumber numParent;
+
     // call find on the key with numRoot
     // find returns true if it finds it, and sets
     // numRoot equal to the last block checked
-    if( find (key, numRoot) ) {
+    if( find ( key, numRoot, numParent ) ) {
 
         // will hold the block where the key was found
         BTreeBlock blockFound;
