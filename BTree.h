@@ -56,6 +56,10 @@ class BTree
 
     bool find(string key, BTreeFile::BlockNumber & numCurr, std::stack<BTreeFile::BlockNumber> & numParent) const;
 
+    bool needsKeys( BTreeFile::BlockNumber numBlock, BTreeBlock block) const;
+
+    bool isRoot ( BTreeFile::BlockNumber numBlock ) const;
+
 
 };
 
