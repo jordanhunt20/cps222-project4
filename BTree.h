@@ -56,9 +56,18 @@ class BTree
 
     bool find(string key, BTreeFile::BlockNumber & numCurr, std::stack<BTreeFile::BlockNumber> & numParent) const;
 
+    // returns whether or not the given block (with corresponding block number)
+    // has fewer than the minimum required keys
     bool needsKeys( BTreeFile::BlockNumber numBlock, BTreeBlock block) const;
 
+    // returns whether or not the given block is the root of the file
     bool isRoot ( BTreeFile::BlockNumber numBlock ) const;
+
+    // removes the first key from a block
+    void removeFirst( BTreeBlock & block );
+
+    // removes the last key from a block
+    void removeLast( BTreeBlock & block );
 
 
 };
