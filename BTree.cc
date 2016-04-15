@@ -241,7 +241,7 @@ bool BTree::lookup(string key, string & value) const
  */
 bool BTree::needsKeys( BTreeFile::BlockNumber numBlock, BTreeBlock block ) const
 {
-    int minNumKeys;
+    unsigned int minNumKeys;
     if (!isRoot(numBlock)) {
         minNumKeys = ceil (DEGREE / 2.0) - 1;
     } else {
