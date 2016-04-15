@@ -35,7 +35,7 @@ BTree::BTree(string name)
  * @param2 BTreeBlock number of root to start serach from
  * @return true if found, false if not
 */
-bool BTree::find(string key, BTreeFile::BlockNumber & numCurr, std::stack<BTreeFile::BlockNumber> & path ) const
+bool BTree::find(string key, BTreeFile::BlockNumber & numCurr, std::stack<BTreeFile::BlockNumber> & path) const
 {
     // BTreeBlock to hold the block specified by numCurr
     BTreeBlock curr;
@@ -47,9 +47,9 @@ bool BTree::find(string key, BTreeFile::BlockNumber & numCurr, std::stack<BTreeF
     // search in
     int position = curr.getPosition(key);
 
-    if ( curr.getKey(position) == key ) { // if the key is in curr return true
+    if (curr.getKey(position) == key) { // if the key is in curr return true
         return true;
-    } else if ( curr.isLeaf() ) { // if curr is a leaf, return false
+    } else if (curr.isLeaf()) { // if curr is a leaf, return false
         return false;
     } else { // if the key is not in curr and curr isn't a leaf, check curr's child
         // add numCurr to the path
@@ -57,11 +57,11 @@ bool BTree::find(string key, BTreeFile::BlockNumber & numCurr, std::stack<BTreeF
 
         // set numCurr equal to curr's child so we can continue following the path
         // to the block containing the key
-        numCurr = curr.getChild( position );
+        numCurr = curr.getChild(position);
 
         // recursive call to find on the child of the block
         // that called this function
-        return find( key, numCurr, path );
+        return find(key, numCurr, path);
     }
 }
 
@@ -111,7 +111,7 @@ void BTree::insert(string key, string value)
         // find returns true if the key is found, and false if not
         // it also sets numCurr equal to the last block checked,
         // and numParent equal to the number of numCurr's parent
-        found = find ( key, numCurr, path );
+        found = find (key, numCurr, path);
 
         // set curr equal to the block at numCurr
         _file.getBlock(numCurr, curr);
@@ -121,8 +121,8 @@ void BTree::insert(string key, string value)
     BTreeFile::BlockNumber position = curr.getPosition(key);
 
     if ( found ) {
-        curr.setValue( position, value );
-        _file.putBlock( numCurr, curr );
+        curr.setValue(position, value);
+        _file.putBlock(numCurr, curr);
     } else {
         // insert key into curr at position with numChild to its right
         curr.insert(position, key, value, numChild);
@@ -134,8 +134,7 @@ void BTree::insert(string key, string value)
 
         // follow curr upwards as long as a split is needed, and do
         // the necessary operations to each parent
-        while (curr.splitNeeded())
-        {
+        while (curr.splitNeeded()) {
             // new block for right half of curr
             BTreeBlock rightChild;
 
@@ -212,7 +211,7 @@ bool BTree::lookup(string key, string & value) const
     // call find on the key with numRoot
     // find returns true if it finds it, and sets
     // numRoot equal to the last block checked
-    if( find ( key, numRoot, path ) ) {
+    if(find (key, numRoot, path)) {
 
         // will hold the block where the key was found
         BTreeBlock blockFound;
@@ -239,7 +238,7 @@ bool BTree::lookup(string key, string & value) const
  * returns whether or not the block needs more keys
  * @return bool: true if key needed, false if not
  */
-bool BTree::needsKeys( BTreeFile::BlockNumber numBlock, BTreeBlock block ) const
+bool BTree::needsKeys(BTreeFile::BlockNumber numBlock, BTreeBlock block) const
 {
     int minNumKeys;
     if (!isRoot(numBlock)) {
@@ -247,41 +246,41 @@ bool BTree::needsKeys( BTreeFile::BlockNumber numBlock, BTreeBlock block ) const
     } else {
         minNumKeys = 1;
     }
-    return ( block.getNumberOfKeys() < minNumKeys );
+    return (block.getNumberOfKeys() < minNumKeys);
 }
 
 /*
  * returns whether or not the block is the root of the tree
  * @return bool: true if block is root, false if not
  */
-bool BTree::isRoot ( BTreeFile::BlockNumber numBlock ) const
+bool BTree::isRoot (BTreeFile::BlockNumber numBlock) const
 {
     BTreeFile::BlockNumber numRoot = _file.getRoot();
-    return ( numRoot == numBlock );
+    return (numRoot == numBlock);
 }
 
 /*
  * Mutates a BTreeBlock by removing its first key and sliding the rest left by one
  * @param1: BTreeBlock - the block to Mutates
  */
-void BTree::removeFirst( BTreeBlock & block )
+void BTree::removeFirst(BTreeBlock & block)
 {
     int numKeys = block.getNumberOfKeys();
 
-    for ( int i = 0; i < numKeys - 1; i++ ) {
+    for (int i = 0; i < numKeys - 1; i++) {
         block.setKey( i, block.getKey(i+1));
-        block.setValue( i, block.getValue(i+1));
-        block.setChild( i, block.getChild(i+1));
+        block.setValue(i, block.getValue(i+1));
+        block.setChild(i, block.getChild(i+1));
     }
 
-    block.setNumberOfKeys ( numKeys - 1 );
+    block.setNumberOfKeys (numKeys - 1);
 }
 
 /*
  * Mutates a BTreeBlock by removing its last key and decrementing the number of keys
  * @param1: BTreeBlock - the block to Mutates
  */
-void BTree::removeLast( BTreeBlock & block )
+void BTree::removeLast(BTreeBlock & block)
 {
     int numKeys = block.getNumberOfKeys();
 
@@ -311,10 +310,10 @@ bool BTree::remove(string key)
     // sets numParent equal to numCurr's parent,
     // and sets found to true or false dependent on if
     // the key is found in the tree
-    bool found = find ( key, numCurr, path );
+    bool found = find (key, numCurr, path);
 
     // if the key is not found in the tree, return false
-    if ( !found ) {
+    if (!found) {
         return false;
     } else {
         // set curr equal to the block with number numCurr
@@ -396,12 +395,12 @@ bool BTree::remove(string key)
 
             // remove the key by sliding all of the keys over to the left
             // and decrementing the number of keys in curr
-            for ( int i = position + 1; i < numKeys; i++ ) {
+            for (int i = position + 1; i < numKeys; i++) {
                 curr.setKey(i-1, curr.getKey(i));
                 curr.setValue(i-1, curr.getValue(i));
             }
             // decrement number of keys in curr
-            curr.setNumberOfKeys( numKeys - 1 );
+            curr.setNumberOfKeys(numKeys - 1);
 
             // reset numKeys to current value of curr
             numKeys = curr.getNumberOfKeys();
@@ -462,7 +461,7 @@ bool BTree::remove(string key)
                 _file.getBlock(numSibling, sibling);
 
                 // minimum number of keys in a non root
-                int minNumKeys = ceil ( DEGREE / 2.0 ) - 1;
+                int minNumKeys = ceil (DEGREE / 2.0) - 1;
 
                 // if it has left and right siblings, and the left
                 // sibling does not have enough keys, use the right
@@ -481,7 +480,7 @@ bool BTree::remove(string key)
                 // get the number of keys in curr
                 int numKeysInCurr = curr.getNumberOfKeys();
 
-                if ( numKeysInSibling - 1 < minNumKeys ) {
+                if (numKeysInSibling - 1 < minNumKeys) {
                     // we cannot remove a key from sibling, so
                     // we must combine sibling and curr and their
                     // divider in parent
@@ -513,7 +512,7 @@ bool BTree::remove(string key)
 
                         // slide keys to the right of divider in parent
                         // left by one
-                        for ( int n = positionInParent-1; n < numKeysInParent-1; n++ ) {
+                        for (int n = positionInParent-1; n < numKeysInParent-1; n++) {
                             parent.setKey(n, parent.getKey(n+1));
                             parent.setValue(n, parent.getValue(n+1));
                             parent.setChild(n+1, parent.getChild(n+2));
