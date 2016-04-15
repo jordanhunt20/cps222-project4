@@ -32,8 +32,8 @@ BTree::BTree(string name)
 
 /*
  * Recursive auxiliary function for finding a block containing a key
- * @param1 string specifying key to be found
- * @param2 BTreeBlock number of root to start serach from
+ * @param key specifying key to be found
+ * @param BTreeBlock number of root to start serach from
  * @return true if found, false if not
 */
 bool BTree::find(string key, BTreeFile::BlockNumber & numCurr, std::stack<BTreeFile::BlockNumber> & path ) const
@@ -92,7 +92,7 @@ void BTree::insert(string key, string value)
     bool found = false;
 
     // empty tree if root = 0
-    if(numCurr == 0) {
+    if (numCurr == 0) {
         // allocate a block to hold the new key value pair
         numCurr = _file.allocateBlock();
 
@@ -121,7 +121,7 @@ void BTree::insert(string key, string value)
     // find position the key parameter should go to in curr
     BTreeFile::BlockNumber position = curr.getPosition(key);
 
-    if ( found ) {
+    if (found) {
         curr.setValue( position, value );
         _file.putBlock( numCurr, curr );
     } else {
@@ -129,14 +129,13 @@ void BTree::insert(string key, string value)
         curr.insert(position, key, value, numChild);
 
         // if no split is needed, write curr to disk
-        if(!curr.splitNeeded()) {
+        if (!curr.splitNeeded()) {
             _file.putBlock(numCurr, curr);
         }
 
         // follow curr upwards as long as a split is needed, and do
         // the necessary operations to each parent
-        while (curr.splitNeeded())
-        {
+        while (curr.splitNeeded()) {
             // new block for right half of curr
             BTreeBlock rightChild;
 
@@ -158,7 +157,7 @@ void BTree::insert(string key, string value)
             _file.putBlock(numRightChild, rightChild);
 
             // if no parent, curr is root, so create new root
-            if ( path.empty()) {
+            if (path.empty()) {
                 numParent = _file.allocateBlock();
                 _file.setRoot(numParent);
             } else {
@@ -213,7 +212,7 @@ bool BTree::lookup(string key, string & value) const
     // call find on the key with numRoot
     // find returns true if it finds it, and sets
     // numRoot equal to the last block checked
-    if( find ( key, numRoot, path ) ) {
+    if (find(key, numRoot, path)) {
 
         // will hold the block where the key was found
         BTreeBlock blockFound;
@@ -244,23 +243,23 @@ bool BTree::needsKeys( BTreeFile::BlockNumber numBlock, BTreeBlock block ) const
 {
     int minNumKeys;
     if (!isRoot(numBlock)) {
-        minNumKeys = ceil ( DEGREE / 2.0 ) - 1;
+        minNumKeys = ceil (DEGREE / 2.0) - 1;
     } else {
         minNumKeys = 1;
     }
     //cout << "minNumKeys: " << minNumKeys << " for block: " << numBlock << endl;
     //cout << "Which has: " << block.getNumberOfKeys() <<" keys" << endl;
-    return ( block.getNumberOfKeys() < minNumKeys );
+    return (block.getNumberOfKeys() < minNumKeys);
 }
 
 /*
  * returns whether or not the block is the root of the tree
  * @return bool: true if block is root, false if not
  */
-bool BTree::isRoot ( BTreeFile::BlockNumber numBlock ) const
+bool BTree::isRoot (BTreeFile::BlockNumber numBlock) const
 {
     BTreeFile::BlockNumber numRoot = _file.getRoot();
-    return ( numRoot == numBlock );
+    return numRoot == numBlock;
 }
 
 /*
@@ -284,10 +283,9 @@ void BTree::removeFirst( BTreeBlock & block )
  * Mutates a BTreeBlock by removing its last key and decrementing the number of keys
  * @param1: BTreeBlock - the block to Mutates
  */
-void BTree::removeLast( BTreeBlock & block )
+void BTree::removeLast(BTreeBlock & block)
 {
     int numKeys = block.getNumberOfKeys();
-
     block.setNumberOfKeys(numKeys - 1);
 }
 
@@ -312,10 +310,10 @@ bool BTree::remove(string key)
     // sets numParent equal to numCurr's parent,
     // and sets found to true or false dependent on if
     // the key is found in the tree
-    bool found = find ( key, numCurr, path );
+    bool found = find(key, numCurr, path);
 
     // if the key is not found in the tree, return false
-    if ( !found ) {
+    if (!found) {
         cout << "Not found!" << endl;
         return false;
     } else {
@@ -347,7 +345,7 @@ bool BTree::remove(string key)
             numLeaf = leaf.getChild(position);
 
             // set leaf equal to the block at numLeaf
-            _file.getBlock( numLeaf, leaf );
+            _file.getBlock(numLeaf, leaf);
 
             // follow the leftmost child of leaf until we get to a leaf
             while (!leaf.isLeaf()) {
@@ -361,7 +359,7 @@ bool BTree::remove(string key)
                 numLeaf = leaf.getChild(0);
 
                 // set leaf equal to the block at numLeaf
-                _file.getBlock( numLeaf, leaf );
+                _file.getBlock(numLeaf, leaf);
             }
 
             // set the key and value in curr that are to be removed
@@ -418,7 +416,7 @@ bool BTree::remove(string key)
             }
 
             // decrement number of keys in curr
-            curr.setNumberOfKeys( numKeys - 1 );
+            curr.setNumberOfKeys(numKeys - 1);
 
             // reset numKeys to current value of curr
             numKeys = curr.getNumberOfKeys();
@@ -507,15 +505,12 @@ bool BTree::remove(string key)
                 // get the number of keys in sibling
                 int numKeysInSibling = sibling.getNumberOfKeys();
 
-
-
                 // get the number of keys in curr
                 int numKeysInCurr = curr.getNumberOfKeys();
 
-
                 //cout << "minNumKeys: " << minNumKeys << endl;
 
-                if ( numKeysInSibling - 1 < minNumKeys ) {
+                if (numKeysInSibling - 1 < minNumKeys) {
                     // we cannot remove a key from sibling, so
                     // we must combine sibling and curr and their
                     // divider in parent
@@ -557,14 +552,14 @@ bool BTree::remove(string key)
 
                         // slide keys to the right of divider in parent
                         // left by one
-                        for ( int n = positionInParent-1; n < numKeysInParent-1; n++ ) {
-                            parent.setKey(n, parent.getKey(n+1));
-                            parent.setValue(n, parent.getValue(n+1));
-                            parent.setChild(n, parent.getChild(n+1));
+                        for (int n = positionInParent - 1; n < numKeysInParent - 1; n++) {
+                            parent.setKey(n, parent.getKey(n + 1));
+                            parent.setValue(n, parent.getValue(n + 1));
+                            parent.setChild(n, parent.getChild(n + 1));
                         }
 
                         // set the child in parent at the divider to the new block
-                        parent.setChild(positionInParent-1, numNewBlock);
+                        parent.setChild(positionInParent - 1, numNewBlock);
 
                     } else {
                         // using right sibling
@@ -573,7 +568,7 @@ bool BTree::remove(string key)
                         cout << "inserting curr" << endl;
                         for (int i = 0; i < numKeysInCurr; i++) {
                             // insert the keys in curr into the left side of newBlock
-                            newBlock.insert(i,curr.getKey(i),curr.getValue(i),curr.getChild(i+1));
+                            newBlock.insert(i,curr.getKey(i),curr.getValue(i),curr.getChild(i + 1));
                         }
                         cout << "inserted curr" << endl;
 
@@ -584,16 +579,16 @@ bool BTree::remove(string key)
 
                         // insert the sibling into new Block
                         for (int i = 0; i < numKeysInSibling; i++) {
-                            newBlock.insert(i+numKeysInCurr+1, sibling.getKey(i),sibling.getValue(i), sibling.getChild(i+1));
-                            cout << "Inserted: " << sibling.getKey(i) << " from sibling at: " << i+numKeysInCurr+1 << endl;
+                            newBlock.insert(i + numKeysInCurr + 1, sibling.getKey(i), sibling.getValue(i), sibling.getChild(i + 1));
+                            cout << "Inserted: " << sibling.getKey(i) << " from sibling at: " << i + numKeysInCurr + 1 << endl;
                         }
 
                         // slide keys to the right of divider in parent
                         // left by one
-                        for ( int n = positionInParent; n < numKeysInParent-1; n++ ) {
-                            parent.setKey(n, parent.getKey(n+1));
-                            parent.setValue(n, parent.getValue(n+1));
-                            parent.setChild(n+1, parent.getChild(n+2));
+                        for ( int n = positionInParent; n < numKeysInParent - 1; n++ ) {
+                            parent.setKey(n, parent.getKey(n + 1));
+                            parent.setValue(n, parent.getValue(n + 1));
+                            parent.setChild(n+1, parent.getChild(n + 2));
                         }
 
                         // set the child in parent at the divider to the new block
@@ -615,11 +610,11 @@ bool BTree::remove(string key)
                     // divider from parent in curr
                     if (hasLeft) {
                         cout << "taking a key from left sibling" << endl;
-                        curr.insert(0, parent.getKey(positionInParent-1), parent.getValue(positionInParent-1), 0);
+                        curr.insert(0, parent.getKey(positionInParent - 1), parent.getValue(positionInParent - 1), 0);
 
-                        parent.setKey(positionInParent-1, sibling.getKey(numKeysInSibling-1));
-                        parent.setValue(positionInParent-1, sibling.getValue(numKeysInSibling-1));
-                        sibling.setNumberOfKeys(numKeysInSibling-1);
+                        parent.setKey(positionInParent - 1, sibling.getKey(numKeysInSibling - 1));
+                        parent.setValue(positionInParent - 1, sibling.getValue(numKeysInSibling - 1));
+                        sibling.setNumberOfKeys(numKeysInSibling - 1);
                     } else {
                         cout << "taking a key from right sibling" << endl;
                         curr.insert(numKeysInCurr, parent.getKey(positionInParent), parent.getValue(positionInParent),0);
